@@ -1,0 +1,575 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Whydaho Snow Recreation</title>
+<meta name="theme-color" content="#0f1117">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Whydaho Snow">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-192.png">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0f1117;
+    --surface: #181b24;
+    --border: #262a36;
+    --text: #e4e6ed;
+    --text-muted: #8a8fa3;
+    --snow-targhee: #5ec4e8;
+    --temp-targhee: #f59e42;
+    --snow-rv: #a78bfa;
+    --temp-rv: #f472b6;
+    --snow-tog: #34d399;
+    --temp-tog: #fbbf24;
+    --accent: #7b61ff;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: var(--bg); color: var(--text);
+    font-family: 'DM Sans', sans-serif; min-height: 100vh; padding: 2rem;
+  }
+  .container { max-width: 1100px; margin: 0 auto; }
+  header { margin-bottom: 1.5rem; }
+  header h1 {
+    font-size: 1.75rem; font-weight: 700; letter-spacing: -0.03em;
+    background: linear-gradient(135deg, var(--snow-targhee), var(--accent));
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  }
+  header .subtitle {
+    font-family: 'JetBrains Mono', monospace; font-size: 0.8rem;
+    color: var(--text-muted); margin-top: 0.35rem;
+  }
+
+  .status-bar {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+    padding: 0.85rem 1.25rem; margin-bottom: 0.75rem;
+    font-family: 'JetBrains Mono', monospace; font-size: 0.78rem;
+    color: var(--text-muted); display: flex; align-items: center; gap: 0.75rem;
+    flex-wrap: wrap;
+  }
+  .status-bar .spinner {
+    width: 16px; height: 16px; border: 2px solid var(--border); border-top-color: var(--snow-targhee);
+    border-radius: 50%; animation: spin 0.7s linear infinite; flex-shrink: 0;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .status-bar.success { border-color: rgba(52,211,153,0.3); }
+  .status-bar.success .dot { width: 8px; height: 8px; border-radius: 50%; background: #34d399; flex-shrink: 0; }
+  .status-bar.error { border-color: rgba(248,113,113,0.3); }
+  .status-bar .refresh-btn {
+    margin-left: auto; padding: 0.3rem 0.85rem; background: var(--accent); color: #fff;
+    border: none; border-radius: 5px; font-family: 'JetBrains Mono', monospace;
+    font-size: 0.72rem; font-weight: 600; cursor: pointer; transition: opacity 0.2s;
+  }
+  .status-bar .refresh-btn:hover { opacity: 0.85; }
+
+
+  .paste-fallback {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+    padding: 1rem 1.25rem; margin-bottom: 1rem; display: none;
+  }
+  .paste-fallback.visible { display: block; }
+  .paste-fallback label {
+    font-size: 0.8rem; color: var(--text-muted); display: block; margin-bottom: 0.5rem;
+  }
+  .paste-fallback label a { color: var(--snow-targhee); }
+  .paste-fallback textarea {
+    width: 100%; height: 70px; background: var(--bg); color: var(--text);
+    border: 1px solid var(--border); border-radius: 6px; padding: 0.6rem;
+    font-family: 'JetBrains Mono', monospace; font-size: 0.7rem; resize: vertical;
+  }
+  .paste-fallback .pbtn {
+    margin-top: 0.5rem; padding: 0.4rem 1rem; background: var(--accent); color: #fff;
+    border: none; border-radius: 5px; font-family: 'DM Sans', sans-serif;
+    font-weight: 600; font-size: 0.8rem; cursor: pointer;
+  }
+  .paste-section-title {
+    font-size: 0.85rem; font-weight: 600; margin-bottom: 0.5rem; color: var(--text);
+  }
+
+  .legend-row { display: flex; gap: 1.5rem; margin-bottom: 1rem; flex-wrap: wrap; }
+  .legend-item { display: flex; align-items: center; gap: 0.5rem; font-size: 0.8rem; font-weight: 500; }
+  .legend-swatch { width: 14px; height: 14px; border-radius: 3px; }
+  .chart-section { display: flex; flex-direction: column; gap: 1.25rem; }
+  .chart-card {
+    background: var(--surface); border: 1px solid var(--border); border-radius: 14px;
+    padding: 1.5rem 1.75rem; position: relative; box-shadow: 0 4px 30px rgba(0,0,0,0.3);
+  }
+  .chart-title {
+    font-size: 1rem; font-weight: 700; color: var(--snow-targhee);
+    margin-bottom: 0.75rem; letter-spacing: -0.01em;
+  }
+  .chart-wrapper { position: relative; width: 100%; height: 360px; }
+  .chart-status {
+    font-family: 'JetBrains Mono', monospace; font-size: 0.72rem;
+    color: var(--text-muted); margin-top: 0.5rem; text-align: right;
+  }
+  .chart-status .dot {
+    display: inline-block; width: 7px; height: 7px; border-radius: 50%;
+    background: #34d399; margin-right: 5px; animation: pulse 2s infinite;
+  }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+  .placeholder-msg {
+    position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+    font-family: 'JetBrains Mono', monospace; font-size: 0.85rem; color: var(--text-muted);
+    text-align: center; line-height: 1.8; flex-direction: column; gap: 0.25rem;
+  }
+
+</style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <h1>Whydaho Snow Recreation</h1>
+    <div class="subtitle">60-min weather data &mdash; Grand Targhee 8800' &middot; JH Rendezvous Bowl 9580' &middot; Togwotee Pass 8710'</div>
+  </header>
+
+  <div class="status-bar" id="statusBar" style="margin-bottom:1.5rem;">
+    <div class="spinner" id="statusSpinner"></div>
+    <span id="statusMsg">Loading stations&hellip;</span>
+    <button class="refresh-btn" id="refreshBtn" onclick="loadAll()" style="display:none;">&#8635; Refresh All</button>
+  </div>
+
+  <div class="paste-fallback" id="pasteFallback">
+    <div class="paste-section-title">Manual Paste Fallback</div>
+    <label>
+      <a href="https://wxstns.net/wxstns/jhnet/TARGHEE.txt" target="_blank">Open TARGHEE.txt</a> &mdash; Ctrl+A, Ctrl+C, paste below:
+    </label>
+    <textarea id="pasteBoxTarghee" placeholder="Paste Targhee data here..."></textarea>
+    <label style="margin-top:0.75rem;">
+      <a href="https://wxstns.net/wxstns/jhnet/RVBOWL.txt" target="_blank">Open RVBOWL.txt</a> &mdash; paste below:
+    </label>
+    <textarea id="pasteBoxRV" placeholder="Paste Rendezvous Bowl data here..."></textarea>
+    <label style="margin-top:0.75rem;">
+      <a href="https://wxstns.net/wxstns/jhnet/COWBOY.txt" target="_blank">Open COWBOY.txt</a> &mdash; paste below:
+    </label>
+    <textarea id="pasteBoxTog" placeholder="Paste Togwotee data here..."></textarea>
+    <button class="pbtn" onclick="plotFromPaste()">Plot</button>
+  </div>
+
+  <div class="chart-section">
+    <div class="chart-card">
+      <div class="chart-title">Int Snow Depth (in) &mdash; cleaned</div>
+      <div class="legend-row">
+        <div class="legend-item">
+          <div class="legend-swatch" style="background:var(--snow-targhee);"></div>
+          Targhee 8800'
+        </div>
+        <div class="legend-item">
+          <div class="legend-swatch" style="background:var(--snow-rv);"></div>
+          Rendezvous Bowl 9580'
+        </div>
+        <div class="legend-item">
+          <div class="legend-swatch" style="background:var(--snow-tog);"></div>
+          Togwotee Pass 8710'
+        </div>
+      </div>
+      <div class="chart-wrapper">
+        <div class="placeholder-msg" id="placeholderSnow">Loading&hellip;</div>
+        <canvas id="chartSnow"></canvas>
+      </div>
+    </div>
+
+    <div class="chart-card">
+      <div class="chart-title" style="color:var(--temp-targhee);">Air Temperature (&deg;F)</div>
+      <div class="legend-row">
+        <div class="legend-item">
+          <div class="legend-swatch" style="background:var(--temp-targhee);"></div>
+          Targhee 8800'
+        </div>
+        <div class="legend-item">
+          <div class="legend-swatch" style="background:var(--temp-rv);"></div>
+          Rendezvous Bowl 9580'
+        </div>
+        <div class="legend-item">
+          <div class="legend-swatch" style="background:var(--temp-tog);"></div>
+          Togwotee Pass 8710'
+        </div>
+      </div>
+      <div class="chart-wrapper">
+        <div class="placeholder-msg" id="placeholderTemp">Loading&hellip;</div>
+        <canvas id="chartTemp"></canvas>
+      </div>
+    </div>
+
+    <div class="chart-status" id="chartStatus"></div>
+  </div>
+</div>
+
+<script>
+const TARGHEE_URL  = 'https://wxstns.net/wxstns/jhnet/TARGHEE.txt';
+const RVBOWL_URL   = 'https://wxstns.net/wxstns/jhnet/RVBOWL.txt';
+const TOGWOTEE_URL = 'https://wxstns.net/wxstns/jhnet/COWBOY.txt';
+let snowChart = null, tempChart = null;
+
+// ── Data cleaning ──
+function cleanSnowDepth(raw, threshold) {
+  const MAX_CHANGE = threshold || 8;
+  const cleaned = [...raw];
+  let fixCount = 0;
+
+  // Pass 1: detect and fix multi-point spike runs
+  let i = 0;
+  while (i < cleaned.length) {
+    if (cleaned[i] === 0) { i++; continue; }
+
+    let lastGood = null, lastGoodIdx = -1;
+    for (let j = i - 1; j >= 0; j--) {
+      lastGood = cleaned[j]; lastGoodIdx = j; break;
+    }
+    if (lastGood === null) { i++; continue; }
+
+    if (Math.abs(cleaned[i] - lastGood) > MAX_CHANGE && cleaned[i] !== 0) {
+      let runEnd = i;
+      while (runEnd < cleaned.length - 1) {
+        runEnd++;
+        if (cleaned[runEnd] === 0 || Math.abs(cleaned[runEnd] - lastGood) <= MAX_CHANGE) break;
+      }
+
+      let nextGood = cleaned[runEnd], nextGoodIdx = runEnd;
+      if (Math.abs(nextGood - lastGood) > MAX_CHANGE && nextGood !== 0) {
+        nextGood = lastGood; nextGoodIdx = runEnd;
+      }
+
+      const runLen = nextGoodIdx - lastGoodIdx;
+      for (let k = i; k < nextGoodIdx; k++) {
+        if (cleaned[k] === 0) continue;
+        const t = (k - lastGoodIdx) / runLen;
+        cleaned[k] = Math.round(lastGood + t * (nextGood - lastGood));
+        fixCount++;
+      }
+      i = nextGoodIdx;
+    } else { i++; }
+  }
+
+  // Pass 2: single-point spikes
+  for (let pass = 0; pass < 2; pass++) {
+    let changed = false;
+    for (let j = 1; j < cleaned.length - 1; j++) {
+      const prev = cleaned[j - 1], curr = cleaned[j], next = cleaned[j + 1];
+      if (curr === 0) continue;
+      if (Math.abs(curr - prev) > MAX_CHANGE &&
+          Math.abs(curr - next) > MAX_CHANGE &&
+          Math.abs(next - prev) <= MAX_CHANGE) {
+        cleaned[j] = Math.round((prev + next) / 2);
+        fixCount++; changed = true;
+      }
+    }
+    if (!changed) break;
+  }
+  return { cleaned, fixCount };
+}
+
+// ── Formatting ──
+function to12Hour(ts) {
+  let h = parseInt(ts.split(':')[0], 10);
+  const ap = h >= 12 ? 'PM' : 'AM';
+  if (h === 0) h = 12; else if (h > 12) h -= 12;
+  return h + ' ' + ap;
+}
+function formatLabel(d, t) {
+  const day = parseInt(d.split('/')[1], 10);
+  let s = 'th';
+  if (day === 1 || day === 21 || day === 31) s = 'st';
+  else if (day === 2 || day === 22) s = 'nd';
+  else if (day === 3 || day === 23) s = 'rd';
+  return day + s + ' ' + to12Hour(t);
+}
+function makeTimeKey(d, t) { return d + ' ' + t; }
+
+// ── Parsing ──
+// Targhee: date time battery temp intsnow totalsnow precip
+function parseTarghee(text) {
+  const entries = [];
+  for (const line of text.split('\n')) {
+    const m = line.trim().match(/^(\d{2}\/\d{2})\s+(\d{2}:\d{2})\s+([\d.]+)\s+(-?\d+)\s+(\d+)\s+(\d+)\s+([\d.]+)$/);
+    if (m) entries.push({ key: makeTimeKey(m[1],m[2]), label: formatLabel(m[1],m[2]), temp: parseInt(m[4],10), intSnow: parseInt(m[5],10) });
+  }
+  entries.reverse();
+  const { cleaned, fixCount } = cleanSnowDepth(entries.map(e=>e.intSnow), 8);
+  entries.forEach((e,i) => e.intSnowCleaned = cleaned[i]);
+  return { entries, fixCount };
+}
+
+// Extended format (RVBOWL + Togwotee): date time battery temp intsnow totalsnow precip1 precip2 ...
+function parseExtended(text, threshold) {
+  const entries = [];
+  for (const line of text.split('\n')) {
+    const m = line.trim().match(/^(\d{2}\/\d{2})\s+(\d{2}:\d{2})\s+([\d.]+)\s+(-?\d+)\s+(-?\d+)\s+(\d+)\s+([\d.]+)\s+([\d.]+)/);
+    if (m) entries.push({ key: makeTimeKey(m[1],m[2]), label: formatLabel(m[1],m[2]), temp: parseInt(m[4],10), intSnow: parseInt(m[5],10) });
+  }
+  entries.reverse();
+  const { cleaned, fixCount } = cleanSnowDepth(entries.map(e=>e.intSnow), threshold);
+  entries.forEach((e,i) => e.intSnowCleaned = cleaned[i]);
+  return { entries, fixCount };
+}
+
+// ── Merge 3 datasets ──
+function mergeData(targhee, rv, tog) {
+  const allKeys = new Map();
+  [targhee, rv, tog].forEach(ds => {
+    for (const e of ds.entries)
+      if (!allKeys.has(e.key)) allKeys.set(e.key, { key: e.key, label: e.label });
+  });
+
+  const timeline = Array.from(allKeys.values()).sort((a, b) => {
+    const [aD,aT] = a.key.split(' '), [bD,bT] = b.key.split(' ');
+    return aD !== bD ? (aD < bD ? -1 : 1) : (aT < bT ? -1 : 1);
+  });
+
+  const tMap = new Map(targhee.entries.map(e=>[e.key,e]));
+  const rMap = new Map(rv.entries.map(e=>[e.key,e]));
+  const gMap = new Map(tog.entries.map(e=>[e.key,e]));
+
+  const out = { labels:[], tSnow:[], tTemp:[], rSnow:[], rTemp:[], gSnow:[], gTemp:[] };
+  for (const slot of timeline) {
+    out.labels.push(slot.label);
+    const te = tMap.get(slot.key), re = rMap.get(slot.key), ge = gMap.get(slot.key);
+    out.tSnow.push(te ? te.intSnowCleaned : null);
+    out.tTemp.push(te ? te.temp : null);
+    out.rSnow.push(re ? re.intSnowCleaned : null);
+    out.rTemp.push(re ? re.temp : null);
+    out.gSnow.push(ge ? ge.intSnowCleaned : null);
+    out.gTemp.push(ge ? ge.temp : null);
+  }
+  return out;
+}
+
+// Trim merged data to the last N hours
+function trimToHours(data, hours) {
+  const n = hours;
+  if (data.labels.length <= n) return data;
+  const start = data.labels.length - n;
+  return {
+    labels: data.labels.slice(start),
+    tSnow: data.tSnow.slice(start),
+    tTemp: data.tTemp.slice(start),
+    rSnow: data.rSnow.slice(start),
+    rTemp: data.rTemp.slice(start),
+    gSnow: data.gSnow ? data.gSnow.slice(start) : undefined,
+    gTemp: data.gTemp ? data.gTemp.slice(start) : undefined,
+  };
+}
+
+// ── Charts ──
+const ttip = {
+  backgroundColor:'#1e2130', borderColor:'#363b50', borderWidth:1,
+  titleFont:{family:"'JetBrains Mono',monospace",size:12},
+  bodyFont:{family:"'DM Sans',sans-serif",size:13},
+  padding:12, cornerRadius:8,
+};
+const xScale = {
+  ticks:{color:'#8a8fa3',font:{family:"'JetBrains Mono',monospace",size:10},
+    maxRotation:90,minRotation:90,autoSkip:true,maxTicksLimit:30},
+  grid:{color:'rgba(255,255,255,0.04)'},
+};
+
+function buildCharts(data, fixes) {
+  document.getElementById('placeholderSnow').style.display = 'none';
+  document.getElementById('placeholderTemp').style.display = 'none';
+  if (snowChart) snowChart.destroy();
+  if (tempChart) tempChart.destroy();
+
+  const ds = (color, bg) => ({
+    borderColor:color, backgroundColor:bg, fill:true,
+    tension:0.3, pointRadius:0, pointHoverRadius:5,
+    pointHoverBackgroundColor:color, borderWidth:2.5, spanGaps:true,
+  });
+
+  snowChart = new Chart(document.getElementById('chartSnow').getContext('2d'), {
+    type:'line',
+    data:{
+      labels:data.labels,
+      datasets:[
+        { label:'Targhee Int Snow (in)',     data:data.tSnow, ...ds('#5ec4e8','rgba(94,196,232,0.08)') },
+        { label:'Rendezvous Int Snow (in)',  data:data.rSnow, ...ds('#a78bfa','rgba(167,139,250,0.08)') },
+        { label:'Togwotee Int Snow (in)',    data:data.gSnow, ...ds('#34d399','rgba(52,211,153,0.08)') },
+      ]
+    },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      interaction:{mode:'index',intersect:false},
+      plugins:{
+        legend:{display:false},
+        tooltip:{...ttip, callbacks:{
+          title:i=>i[0].label,
+          label:i=>' '+i.dataset.label+': '+i.formattedValue+' in',
+        }},
+      },
+      scales:{
+        x:xScale,
+        y:{
+          type:'linear',position:'left',
+          title:{display:true,text:'Int Snow Depth (in)',color:'#5ec4e8',font:{family:"'DM Sans',sans-serif",size:13,weight:'600'}},
+          ticks:{color:'#5ec4e8',font:{family:"'JetBrains Mono',monospace",size:11}},
+          grid:{color:'rgba(94,196,232,0.07)'},
+        },
+      }
+    }
+  });
+
+  tempChart = new Chart(document.getElementById('chartTemp').getContext('2d'), {
+    type:'line',
+    data:{
+      labels:data.labels,
+      datasets:[
+        { label:'Targhee Temp (°F)',     data:data.tTemp, ...ds('#f59e42','rgba(245,158,66,0.08)') },
+        { label:'Rendezvous Temp (°F)',  data:data.rTemp, ...ds('#f472b6','rgba(244,114,182,0.08)') },
+        { label:'Togwotee Temp (°F)',    data:data.gTemp, ...ds('#fbbf24','rgba(251,191,36,0.08)') },
+      ]
+    },
+    options:{
+      responsive:true, maintainAspectRatio:false,
+      interaction:{mode:'index',intersect:false},
+      plugins:{
+        legend:{display:false},
+        tooltip:{...ttip, callbacks:{
+          title:i=>i[0].label,
+          label:i=>' '+i.dataset.label+': '+i.formattedValue+' °F',
+        }},
+      },
+      scales:{
+        x:xScale,
+        y:{
+          type:'linear',position:'left',
+          title:{display:true,text:'Air Temp (°F)',color:'#f59e42',font:{family:"'DM Sans',sans-serif",size:13,weight:'600'}},
+          ticks:{color:'#f59e42',font:{family:"'JetBrains Mono',monospace",size:11}},
+          grid:{color:'rgba(245,158,66,0.07)'},
+        },
+      }
+    }
+  });
+
+  const now = new Date().toLocaleString();
+  document.getElementById('chartStatus').innerHTML =
+    '<span class="dot"></span>' + now + ' &middot; ' + data.labels.length + ' time slots &middot; ' + data.labels[0] + ' – ' + data.labels[data.labels.length-1];
+
+}
+
+// ── Fetch helpers ──
+function fetchWithTimeout(url, opts, ms) {
+  const ctrl = new AbortController();
+  const id = setTimeout(() => ctrl.abort(), ms);
+  return fetch(url, {...opts, signal:ctrl.signal}).then(r=>{clearTimeout(id);return r;}).catch(e=>{clearTimeout(id);throw e;});
+}
+
+function makeStrategies(dataUrl) {
+  return [
+    { fn: async()=>{ const r=await fetchWithTimeout(dataUrl,{},6000); if(!r.ok)throw new Error('HTTP '+r.status); return{text:await r.text(),method:'direct'}; }},
+    { fn: async()=>{ const r=await fetchWithTimeout('https://api.allorigins.win/get?url='+encodeURIComponent(dataUrl),{},10000); if(!r.ok)throw new Error('HTTP '+r.status); const j=await r.json(); if(!j.contents)throw new Error('No contents'); return{text:j.contents,method:'allorigins'}; }},
+    { fn: async()=>{ const r=await fetchWithTimeout('https://api.allorigins.win/raw?url='+encodeURIComponent(dataUrl),{},10000); if(!r.ok)throw new Error('HTTP '+r.status); return{text:await r.text(),method:'allorigins-raw'}; }},
+    { fn: async()=>{ const r=await fetchWithTimeout('https://corsproxy.io/?'+encodeURIComponent(dataUrl),{},10000); if(!r.ok)throw new Error('HTTP '+r.status); return{text:await r.text(),method:'corsproxy.io'}; }},
+    { fn: async()=>{ const r=await fetchWithTimeout('https://api.codetabs.com/v1/proxy?quest='+encodeURIComponent(dataUrl),{},10000); if(!r.ok)throw new Error('HTTP '+r.status); return{text:await r.text(),method:'codetabs'}; }},
+    { fn: async()=>{ const r=await fetchWithTimeout('https://thingproxy.freeboard.io/fetch/'+dataUrl,{},10000); if(!r.ok)throw new Error('HTTP '+r.status); return{text:await r.text(),method:'thingproxy'}; }},
+    { fn: async()=>{ const r=await fetchWithTimeout('https://corsproxy.org/?'+encodeURIComponent(dataUrl),{},10000); if(!r.ok)throw new Error('HTTP '+r.status); return{text:await r.text(),method:'corsproxy.org'}; }},
+  ];
+}
+
+async function fetchStation(dataUrl) {
+  const results = makeStrategies(dataUrl).map(async s => {
+    const result = await s.fn();
+    if (!result.text || result.text.length < 50) throw new Error('Empty');
+    return result;
+  });
+  return Promise.any(results);
+}
+
+function setStatus(status, message) {
+  const bar = document.getElementById('statusBar');
+  const spinner = document.getElementById('statusSpinner');
+  const msg = document.getElementById('statusMsg');
+  if (status === 'loading') {
+    bar.className = 'status-bar'; spinner.style.display = '';
+    const d = bar.querySelector('.dot'); if (d) d.remove();
+    msg.textContent = message;
+  } else if (status === 'success') {
+    bar.className = 'status-bar success'; spinner.style.display = 'none';
+    const dot = document.createElement('div'); dot.className = 'dot';
+    if (!bar.querySelector('.dot')) bar.insertBefore(dot, bar.firstChild);
+    msg.textContent = message;
+  } else if (status === 'error') {
+    bar.className = 'status-bar error'; spinner.style.display = 'none';
+    msg.textContent = message;
+  }
+}
+
+// ── Main loader ──
+async function loadAll() {
+  setStatus('loading', 'Fetching stations…');
+  document.getElementById('refreshBtn').style.display = 'none';
+  document.getElementById('pasteFallback').classList.remove('visible');
+
+  let anyFailed = false;
+  const empty = { entries:[], fixCount:0 };
+  const results = { targhee:null, rv:null, tog:null };
+
+  try {
+    const [tR, rR, gR] = await Promise.allSettled([
+      fetchStation(TARGHEE_URL), fetchStation(RVBOWL_URL), fetchStation(TOGWOTEE_URL),
+    ]);
+
+    if (tR.status === 'fulfilled') { results.targhee = parseTarghee(tR.value.text); }
+    else { anyFailed = true; }
+
+    if (rR.status === 'fulfilled') { results.rv = parseExtended(rR.value.text, 5); }
+    else { anyFailed = true; }
+
+    if (gR.status === 'fulfilled') { results.tog = parseExtended(gR.value.text, 5); }
+    else { anyFailed = true; }
+  } catch(e) { console.error(e); anyFailed = true; }
+
+  document.getElementById('refreshBtn').style.display = '';
+
+  if (!results.targhee) results.targhee = empty;
+  if (!results.rv)      results.rv = empty;
+  if (!results.tog)     results.tog = empty;
+
+  if (results.targhee.entries.length===0 && results.rv.entries.length===0 && results.tog.entries.length===0) {
+    setStatus('error', 'All stations failed — use manual paste or Refresh');
+    document.getElementById('pasteFallback').classList.add('visible');
+    document.getElementById('placeholderSnow').textContent = 'Waiting for data…';
+    document.getElementById('placeholderTemp').textContent = 'Waiting for data…';
+    return;
+  }
+
+  if (anyFailed) {
+    document.getElementById('pasteFallback').classList.add('visible');
+    setStatus('success', 'Partial data loaded');
+  } else {
+    setStatus('success', 'All stations loaded');
+  }
+
+  const data = trimToHours(mergeData(results.targhee, results.rv, results.tog), 72);
+  buildCharts(data, { targhee:results.targhee.fixCount, rv:results.rv.fixCount, tog:results.tog.fixCount });
+}
+
+function plotFromPaste() {
+  const tT = document.getElementById('pasteBoxTarghee').value;
+  const rT = document.getElementById('pasteBoxRV').value;
+  const gT = document.getElementById('pasteBoxTog').value;
+  if (!tT.trim() && !rT.trim() && !gT.trim()) return;
+
+  const empty = { entries:[], fixCount:0 };
+  const tr = tT.trim() ? parseTarghee(tT) : empty;
+  const rv = rT.trim() ? parseExtended(rT, 5) : empty;
+  const tg = gT.trim() ? parseExtended(gT, 5) : empty;
+
+  if (tr.entries.length===0 && rv.entries.length===0 && tg.entries.length===0) { alert('No valid data rows found.'); return; }
+
+  setStatus('success', 'Data loaded via paste');
+  const data = trimToHours(mergeData(tr, rv, tg), 72);
+  buildCharts(data, { targhee:tr.fixCount, rv:rv.fixCount, tog:tg.fixCount });
+}
+
+loadAll();
+
+// Register service worker for PWA
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('sw.js').catch(() => {});
+}
+</script>
+</body>
+</html>
